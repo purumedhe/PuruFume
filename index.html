@@ -1,0 +1,636 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>PuruFume — Mobile Vending Interface</title>
+  <meta name="description" content="PuruFume perfume vending machine demo — mobile-first interactive UI."/>
+  <style>
+    /* ====== Base / Theme ====== */
+    :root{
+      --bg-1: linear-gradient(160deg, rgba(245,243,250,1) 0%, rgba(238,244,251,1) 45%, rgba(250,248,246,1) 100%);
+      --accent-1: #9b86ff; /* lavender-silver */
+      --accent-2: #c7a17a; /* light gold */
+      --accent-3: #f1c6d6; /* rose pink */
+      --muted: #7a7a86;
+      --glass: rgba(255,255,255,0.6);
+      --card-bg: linear-gradient(180deg, rgba(255,255,255,0.85), rgba(250,250,252,0.85));
+      --shadow: 0 6px 20px rgba(12,12,20,0.08);
+      --glass-2: rgba(255,255,255,0.45);
+      --highlight: rgba(155,134,255,0.18);
+      --success: #37c66f;
+    }
+    html,body{
+      height:100%;
+      margin:0;
+      font-family: "Poppins", "Montserrat", system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+      -webkit-font-smoothing:antialiased;
+      -moz-osx-font-smoothing:grayscale;
+      background: radial-gradient(1200px 600px at 10% 10%, rgba(155,134,255,0.06), transparent 12%),
+                  radial-gradient(900px 600px at 90% 90%, rgba(199,161,122,0.03), transparent 10%),
+                  var(--bg-1);
+      color:#111;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    /* Container: mobile card */
+    .app {
+      width:100%;
+      max-width:460px;
+      margin:18px auto;
+      padding:14px;
+      box-sizing:border-box;
+    }
+
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,0.72), rgba(255,255,255,0.6));
+      border-radius:18px;
+      padding:12px;
+      box-shadow: var(--shadow);
+      backdrop-filter: blur(6px) saturate(120%);
+      border: 1px solid rgba(255,255,255,0.45);
+    }
+
+    /* Header with entry animation */
+    .header {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      gap:12px;
+      padding:10px 6px;
+      overflow:hidden;
+    }
+    .brand {
+      display:flex;
+      align-items:center;
+      gap:10px;
+      transform:translateY(-18px);
+      opacity:0;
+      animation: headerEnter 900ms cubic-bezier(.2,.9,.3,1) forwards;
+    }
+    @keyframes headerEnter {
+      to { transform:none; opacity:1; }
+    }
+    .logo {
+      width:46px;
+      height:46px;
+      border-radius:12px;
+      background: linear-gradient(135deg, var(--accent-1), var(--accent-3));
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:white;
+      font-weight:700;
+      font-size:16px;
+      box-shadow: 0 6px 18px rgba(155,134,255,0.12);
+    }
+    .brand h1 {
+      margin:0;
+      font-size:18px;
+      letter-spacing:0.6px;
+    }
+    .brand p { margin:0; font-size:12px; color:var(--muted); }
+
+    /* Machine / illustration area */
+    .machine-area {
+      margin-top:12px;
+      position:relative;
+      display:flex;
+      gap:12px;
+      align-items:center;
+      justify-content:center;
+      padding:10px;
+      border-radius:14px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.6), rgba(250,250,252,0.55));
+      border:1px solid rgba(200,200,210,0.12);
+    }
+    .machine-illustration {
+      width:100%;
+      max-width:360px;
+      height:220px;
+      display:block;
+      position:relative;
+      border-radius:12px;
+      overflow:visible;
+      touch-action:none;
+    }
+    .machine-illustration img {
+      width:100%;
+      height:100%;
+      object-fit:cover;
+      border-radius:12px;
+      box-shadow: 0 12px 30px rgba(12,12,20,0.07);
+      border: 1px solid rgba(255,255,255,0.6);
+    }
+
+    /* Spray mist effect */
+    .spray {
+      position:absolute;
+      left:50%;
+      top:28%;
+      transform:translateX(-50%);
+      pointer-events:none;
+      width:180px;
+      height:160px;
+      border-radius:50%;
+      opacity:0;
+      filter: blur(8px) saturate(110%);
+    }
+    .spray .puff {
+      position:absolute;
+      width:100%;
+      height:100%;
+      background: radial-gradient(circle at 50% 30%, rgba(255,255,255,0.7), rgba(255,255,255,0.1) 40%, transparent 60%);
+      mix-blend-mode: screen;
+      transform: scale(0.6);
+      opacity:0;
+    }
+    .spray.show { animation: sprayShow 900ms ease-out forwards; }
+    @keyframes sprayShow{
+      0% { opacity:0; transform:translateX(-50%) scale(0.9); }
+      8% { opacity:1; transform:translateX(-50%) scale(1); }
+      60% { opacity:1; transform:translateX(-50%) scale(1.05); }
+      100% { opacity:0; transform:translateX(-50%) scale(1.25); }
+    }
+
+    /* Status & controls */
+    .status-row {
+      display:flex;
+      align-items:center;
+      justify-content:space-between;
+      padding:8px 6px;
+      margin-top:10px;
+    }
+    .status {
+      display:flex;
+      gap:8px;
+      align-items:center;
+      font-size:13px;
+      color:var(--muted);
+    }
+    .dot {
+      width:12px; height:12px; border-radius:12px; background:#f3f3f3; box-shadow: inset 0 -2px 4px rgba(0,0,0,0.06);
+    }
+    .dot.ready { background: var(--success); box-shadow: 0 0 10px rgba(55,198,111,0.18); }
+    .controls { display:flex; gap:8px; align-items:center; }
+
+    .btn {
+      appearance:none;
+      border:0;
+      background: linear-gradient(180deg, rgba(255,255,255,0.9), rgba(255,255,255,0.85));
+      padding:8px 12px;
+      border-radius:10px;
+      font-weight:600;
+      font-size:14px;
+      box-shadow: 0 6px 14px rgba(12,12,20,0.06);
+      cursor:pointer;
+    }
+    .btn.primary {
+      background: linear-gradient(90deg, rgba(155,134,255,0.12), rgba(199,161,122,0.06));
+      border:1px solid rgba(155,134,255,0.14);
+    }
+    .btn:active { transform:translateY(1px); }
+
+    /* Perfume selection area — horizontal carousel for mobile */
+    .perfumes {
+      margin-top:12px;
+    }
+    .perfumes-inner {
+      display:flex;
+      gap:10px;
+      overflow-x:auto;
+      padding-bottom:6px;
+      padding-left:6px;
+      -webkit-overflow-scrolling:touch;
+      scrollbar-width:none; /* firefox */
+    }
+    .perfumes-inner::-webkit-scrollbar{ display:none; }
+
+    .card {
+      min-width:120px;
+      max-width:140px;
+      background: var(--card-bg);
+      border-radius:12px;
+      padding:10px;
+      box-shadow: var(--shadow);
+      border:1px solid rgba(200,200,210,0.08);
+      display:flex;
+      flex-direction:column;
+      gap:8px;
+      align-items:center;
+      text-align:center;
+      cursor:pointer;
+      transition: transform 220ms cubic-bezier(.2,.9,.3,1), box-shadow 220ms ease, border-color 220ms ease;
+      position:relative;
+    }
+    .card:hover { transform: translateY(-6px) scale(1.02); }
+    .card .icon { font-size:22px; }
+    .card .name { font-weight:700; font-size:14px; }
+    .card .note { font-size:11px; color:var(--muted); }
+
+    /* selected state */
+    .card.selected {
+      border: 1px solid rgba(155,134,255,0.9);
+      box-shadow: 0 10px 28px rgba(155,134,255,0.12), 0 2px 0 rgba(255,255,255,0.06) inset;
+      transform: translateY(-8px) scale(1.035);
+    }
+    .card.selected::after{
+      content:'';
+      position:absolute;
+      inset:-4px;
+      border-radius:14px;
+      background: linear-gradient(90deg, rgba(155,134,255,0.12), rgba(199,161,122,0.06));
+      filter: blur(8px);
+      opacity:0.9;
+      z-index:-1;
+      pointer-events:none;
+    }
+    /* shimmer */
+    .shimmer {
+      position:absolute;
+      left:-30%;
+      top:-30%;
+      width:60%;
+      height:160%;
+      transform:skewX(-20deg) translateX(-30%);
+      background: linear-gradient(90deg, rgba(255,255,255,0.0) 0%, rgba(255,255,255,0.65) 50%, rgba(255,255,255,0.0) 100%);
+      opacity:0;
+      pointer-events:none;
+    }
+    .card.selected .shimmer { animation: shimmer 900ms ease-out 1; opacity:1; }
+    @keyframes shimmer {
+      0% { transform:skewX(-20deg) translateX(-80%); opacity:0; }
+      20% { opacity:0.8; }
+      100% { transform:skewX(-20deg) translateX(180%); opacity:0; }
+    }
+
+    /* tactile vibration effect */
+    .card.vibrate {
+      animation: vibrate 420ms linear;
+    }
+    @keyframes vibrate {
+      0% { transform: translateY(-8px) rotate(0deg); }
+      20% { transform: translateY(-6px) rotate(-0.6deg); }
+      40% { transform: translateY(-8px) rotate(0.6deg); }
+      60% { transform: translateY(-8px) rotate(-0.4deg); }
+      100% { transform: translateY(-8px) rotate(0deg); }
+    }
+
+    /* message banner */
+    .message {
+      margin-top:12px;
+      padding:10px;
+      border-radius:12px;
+      background: linear-gradient(90deg, rgba(155,134,255,0.06), rgba(241,198,214,0.03));
+      font-weight:600;
+      display:flex;
+      gap:8px;
+      align-items:center;
+      justify-content:center;
+      color:#111;
+      min-height:44px;
+      opacity:0;
+      transform:translateY(6px);
+      transition: all 320ms ease;
+    }
+    .message.show {
+      opacity:1;
+      transform:none;
+    }
+
+    /* footer */
+    .footer {
+      margin-top:14px;
+      display:flex;
+      align-items:center;
+      justify-content:center;
+      color:var(--muted);
+      font-size:13px;
+      padding:8px 0;
+    }
+
+    /* Responsive tweaks */
+    @media (min-width:520px){
+      .perfumes-inner { gap:14px; }
+      .card { min-width:140px; max-width:160px; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="panel" role="application" aria-label="PuruFume vending machine interface">
+      <header class="header">
+        <div class="brand" aria-hidden="false">
+          <div class="logo" aria-hidden="true">PF</div>
+          <div>
+            <h1>PuruFume</h1>
+            <p>Pick a fragrance • Tap to spray</p>
+          </div>
+        </div>
+        <div style="display:flex;align-items:center;gap:8px;">
+          <div style="font-size:12px;color:var(--muted)">Lux Collection</div>
+        </div>
+      </header>
+
+      <section class="machine-area" aria-hidden="false">
+        <div class="machine-illustration" id="machineArea" aria-label="Perfume machine illustration">
+          <!-- Placeholder illustration — replace /images/machine.png with actual image -->
+          <img src="/images/machine.png" alt="PuruFume machine illustration (placeholder)" id="machineImg" />
+          <!-- Spray effect (positioned over the machine) -->
+          <div class="spray" id="sprayEffect" aria-hidden="true">
+            <div class="puff"></div>
+          </div>
+        </div>
+      </section>
+
+      <div class="status-row" aria-hidden="false">
+        <div class="status">
+          <div class="dot ready" id="readyDot" title="Machine Ready" aria-hidden="true"></div>
+          <div id="machineStatus">Machine Ready</div>
+        </div>
+        <div class="controls">
+          <button class="btn" id="helpBtn" aria-label="Help">How to use</button>
+          <button class="btn primary" id="sprayAgain" style="display:none;" aria-hidden="true">Spray Again</button>
+        </div>
+      </div>
+
+      <section class="perfumes" aria-label="Perfume selection">
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 6px;">
+          <div style="font-weight:700;">Choose fragrance</div>
+          <div style="font-size:12px;color:var(--muted);">1 of 10</div>
+        </div>
+
+        <div class="perfumes-inner" id="perfumeList" tabindex="0">
+          <!-- Cards will be inserted by JS -->
+        </div>
+      </section>
+
+      <div class="message" id="messageArea" role="status" aria-live="polite">
+        <!-- Message text appears via JS -->
+      </div>
+
+      <div class="footer">© 2025 PuruFume</div>
+    </div>
+  </div>
+
+  <script>
+    (function(){
+      // ======= Data (assumed) =======
+      const perfumes = [
+        { id: 'ocean', name: 'Ocean Mist', note: 'Fresh • Aquatic', emoji: '💧' },
+        { id: 'rose', name: 'Rose Bloom', note: 'Floral • Romantic', emoji: '🌹' },
+        { id: 'midoud', name: 'Midnight Oud', note: 'Warm • Spicy', emoji: '🌑' },
+        { id: 'citrus', name: 'Citrus Zing', note: 'Zesty • Energetic', emoji: '🍊' },
+        { id: 'vanilla', name: 'Velvet Vanilla', note: 'Sweet • Cozy', emoji: '🍮' },
+        { id: 'sakura', name: 'Sakura Silk', note: 'Delicate • Soft', emoji: '🌸' },
+        { id: 'forest', name: 'Forest Amber', note: 'Earthy • Woody', emoji: '🌲' },
+        { id: 'noir', name: 'Noir Velvet', note: 'Smoky • Seductive', emoji: '🖤' },
+        { id: 'peach', name: 'Peach Blossom', note: 'Fruity • Light', emoji: '🍑' },
+        { id: 'musk', name: 'Moon Musk', note: 'Clean • Memorable', emoji: '🌕' }
+      ];
+
+      const spraySoundUrl = '/sounds/spray.mp3'; // placeholder — replace with actual file (optional)
+
+      // ======= DOM refs =======
+      const list = document.getElementById('perfumeList');
+      const message = document.getElementById('messageArea');
+      const sprayEffect = document.getElementById('sprayEffect');
+      const readyDot = document.getElementById('readyDot');
+      const machineStatus = document.getElementById('machineStatus');
+      const sprayAgainBtn = document.getElementById('sprayAgain');
+      const helpBtn = document.getElementById('helpBtn');
+      let audio;
+
+      // Create audio element if sound available (optional)
+      try {
+        audio = new Audio(spraySoundUrl);
+        audio.preload = 'auto';
+      } catch(e) {
+        audio = null;
+      }
+
+      // Build cards
+      perfumes.forEach((p, idx) => {
+        const card = document.createElement('button');
+        card.className = 'card';
+        card.type = 'button';
+        card.dataset.id = p.id;
+        card.setAttribute('aria-pressed', 'false');
+        card.setAttribute('aria-label', p.name + ' — ' + p.note);
+
+        card.innerHTML = `
+          <div class="icon" aria-hidden="true">${p.emoji}</div>
+          <div class="name">${p.name}</div>
+          <div class="note">${p.note}</div>
+          <div class="shimmer" aria-hidden="true"></div>
+        `;
+
+        // Click handler
+        card.addEventListener('click', async (ev) => {
+          ev.currentTarget.blur();
+          selectPerfume(p, card);
+        });
+
+        // keyboard activation (Enter/Space)
+        card.addEventListener('keydown', (ev) => {
+          if (ev.key === 'Enter' || ev.key === ' ') {
+            ev.preventDefault();
+            ev.currentTarget.click();
+          }
+        });
+
+        list.appendChild(card);
+      });
+
+      // Select logic
+      let lastSelectedCard = null;
+      let busy = false;
+
+      async function selectPerfume(p, card) {
+        if (busy) return;
+        busy = true;
+
+        // clear previous selected
+        document.querySelectorAll('.card').forEach(c => {
+          c.classList.remove('selected', 'vibrate');
+          c.setAttribute('aria-pressed', 'false');
+        });
+
+        // mark selected
+        card.classList.add('selected');
+        card.classList.add('vibrate');
+        card.setAttribute('aria-pressed', 'true');
+
+        // shimmer is triggered via CSS .selected .shimmer
+        // scroll card into view on small screens
+        card.scrollIntoView({behavior:'smooth', inline:'center', block:'nearest'});
+
+        // play sound (if available)
+        if (audio) {
+          try {
+            audio.currentTime = 0;
+            await audio.play();
+          } catch(e){}
+        } else {
+          // tiny haptic-like micro beep via WebAudio fallback (very small)
+          try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const o = ctx.createOscillator();
+            const g = ctx.createGain();
+            o.type = 'sine';
+            o.frequency.value = 880;
+            g.gain.value = 0.0008;
+            o.connect(g); g.connect(ctx.destination);
+            o.start();
+            setTimeout(()=>{ o.stop(); ctx.close(); }, 80);
+          } catch(e){}
+        }
+
+        // small delay, then show spray animation
+        showMessage('Preparing spray...');
+        await animateDelay(260);
+
+        showSpray();
+        showMessage('Your perfume has been sprayed! 💨✨');
+        sprayAgainBtn.style.display = 'inline-block';
+        sprayAgainBtn.setAttribute('aria-hidden', 'false');
+
+        // update small machine status/breathing glow
+        readyDot.classList.remove('ready');
+        machineStatus.textContent = 'Spraying...';
+        await animateDelay(850); // simulate spray cycle
+
+        // finish
+        machineStatus.textContent = 'Machine Ready';
+        readyDot.classList.add('ready');
+
+        busy = false;
+      }
+
+      function showMessage(text){
+        message.textContent = text;
+        message.classList.add('show');
+        // auto hide after short time unless it's the sprayed message
+        if (!/sprayed/i.test(text)) {
+          setTimeout(()=> {
+            message.classList.remove('show');
+          }, 1600);
+        }
+      }
+
+      function showSpray(){
+        sprayEffect.classList.remove('show');
+        // reflow
+        void sprayEffect.offsetWidth;
+        sprayEffect.classList.add('show');
+        // hide after animation ends (CSS anim 900ms)
+        setTimeout(()=> sprayEffect.classList.remove('show'), 950);
+      }
+
+      // Spray Again button resumes the same selected card action
+      sprayAgainBtn.addEventListener('click', (ev) => {
+        const selected = document.querySelector('.card.selected');
+        if (selected) {
+          const id = selected.dataset.id;
+          const p = perfumes.find(x => x.id === id);
+          if (p) selectPerfume(p, selected);
+        } else {
+          // if none selected, pick first
+          const first = document.querySelector('.card');
+          if (first) first.click();
+        }
+      });
+
+      // Help button
+      helpBtn.addEventListener('click', () => {
+        showMessage('Tap a perfume card to spray. Use "Spray Again" to repeat.');
+      });
+
+      // slight entrance animation for perfume list
+      setTimeout(()=> {
+        document.querySelectorAll('.card').forEach((c,i)=>{
+          c.style.transitionDelay = (i*28)+'ms';
+          c.style.opacity = 0;
+          setTimeout(()=> c.style.opacity = 1, 50 + i*28);
+        });
+      },120);
+
+      // helper: small delay
+      function animateDelay(ms){
+        return new Promise(res => setTimeout(res, ms));
+      }
+
+      // Accessibility: keyboard left-right to navigate perfume list focus
+      list.addEventListener('keydown', (ev) => {
+        const focusEl = document.activeElement;
+        if (!focusEl || !focusEl.classList.contains('card')) return;
+        if (ev.key === 'ArrowRight') {
+          ev.preventDefault();
+          const next = focusEl.nextElementSibling;
+          if (next) next.focus();
+        } else if (ev.key === 'ArrowLeft') {
+          ev.preventDefault();
+          const prev = focusEl.previousElementSibling;
+          if (prev) prev.focus();
+        }
+      });
+
+      // Small: detect whether placeholder image exists; if not, show simple drawn machine
+      const imgEl = document.getElementById('machineImg');
+      imgEl.addEventListener('error', ()=> {
+        // Replace image with a decorative SVG fallback created in DOM
+        const parent = imgEl.parentElement;
+        parent.removeChild(imgEl);
+        const svg = document.createElementNS('http://www.w3.org/2000/svg','svg');
+        svg.setAttribute('viewBox','0 0 600 360');
+        svg.setAttribute('width','100%');
+        svg.setAttribute('height','100%');
+        svg.innerHTML = `
+          <defs>
+            <linearGradient id="g1" x1="0" x2="1">
+              <stop offset="0" stop-color="#f6f4fb"/>
+              <stop offset="1" stop-color="#fffdfb"/>
+            </linearGradient>
+          </defs>
+          <rect x="6" y="6" width="588" height="348" rx="12" ry="12" fill="url(#g1)" stroke="rgba(200,200,210,0.1)" />
+          <g transform="translate(36,28)">
+            <rect x="0" y="0" width="220" height="300" rx="12" fill="#fff" stroke="rgba(0,0,0,0.03)"/>
+            <rect x="250" y="22" width="280" height="120" rx="10" fill="#ffffff" stroke="rgba(0,0,0,0.02)"/>
+            <text x="260" y="72" font-family="sans-serif" font-size="22" fill="#8e7fbf">PuruFume</text>
+            <text x="260" y="102" font-family="sans-serif" font-size="12" fill="#7a7a86">Perfume Vending Machine</text>
+            <circle cx="350" cy="200" r="48" fill="#f7f7fb" stroke="rgba(0,0,0,0.03)"/>
+            <rect x="260" y="182" width="160" height="12" rx="6" fill="#efeef8"/>
+          </g>
+        `;
+        parent.appendChild(svg);
+      });
+
+      // small usability: tap outside cards hides message
+      document.addEventListener('touchstart', (ev) => {
+        // if not clicking a card, don't hide the sprayed success
+        if (!ev.target.closest('.card')) {
+          // don't force hide if it's sprayed message
+          if (!/sprayed/i.test(message.textContent || '')) {
+            message.classList.remove('show');
+          }
+        }
+      }, {passive:true});
+
+      // initial machine-ready glow
+      readyDot.classList.add('ready');
+
+      // Gesture hint for horizontal scroll (only on very small screens)
+      if (window.innerWidth < 420) {
+        const hint = document.createElement('div');
+        hint.style.fontSize = '12px';
+        hint.style.color = 'var(--muted)';
+        hint.style.padding = '8px 6px';
+        hint.style.textAlign = 'center';
+        hint.textContent = 'Swipe left/right to view more fragrances';
+        document.querySelector('.perfumes').insertBefore(hint, document.getElementById('perfumeList'));
+      }
+
+    })();
+  </script>
+</body>
+</html>
